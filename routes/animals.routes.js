@@ -5,10 +5,58 @@ const auth = require("../auth-middleware")
 
 
 // get all animals
-router.get("/animals", async function(request, response, next) {
+/*router.get("/animals", async function(request, response, next) {
     try {
         let result = await Animal.find();
         return response.status(200).json(result)
+    } catch (error) {
+        return next(error);
+    }
+})*/
+
+/* 
+response: 
+{
+    count: 1234,
+    next: "http://localhost:4000/api/v1/animals?offset=25&limit=5",
+    previous: http://localhost:4000/api/v1/animals?offset=15&limit=5,
+    results: [],
+    url: http://localhost:4000/api/v1/animals?offset=0&limit=5
+}
+*/
+
+// http://localhost:4000/api/v1/animals?offset=20&limit=5
+router.get("/animals", async function(request, response, next) {
+
+    let offset = parseInt(request.query.offset) || 0;
+    let limit = parseInt(request.query.limit) || 5;
+
+    try {
+        let count = (await Animal.find()).length;
+        let results = await Animal.find().skip(offset).limit(limit);
+
+        let queryStringNext = `?offset=${offset+limit}&limit=${limit}`
+        let queryStringPrev = null;
+
+        if( offset >= limit) {
+            queryStringPrev = 
+                `?offset=${offset-limit}&limit=${limit}`
+        }
+
+        let apiUrl = `${request.protocol}://${request.hostname}${request.hostname==='localhost' ? ":4000" : '' }`
+        let apiPath = `${request.baseUrl}${request.path}`
+
+        
+        let output = {
+            count,
+            next: (offset + limit < count) ? apiUrl + apiPath + queryStringNext : null,
+            previous: offset > 0 ? apiUrl + apiPath + queryStringPrev : null,
+            results,
+            url: apiUrl + request.originalUrl  
+        }
+
+
+        return response.status(200).json(output)
     } catch (error) {
         return next(error);
     }
